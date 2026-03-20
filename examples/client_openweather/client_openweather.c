@@ -1,0 +1,183 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+/* Put wolfSSL headers before Windows socket headers */
+#ifndef WOLFSSL_USER_SETTINGS
+#include <wolfssl/options.h>
+#endif
+#include <wolfssl/ssl.h>
+
+#define WIN32_LEAN_AND_MEAN
+#include <winsock2.h>
+#include <ws2tcpip.h>
+
+#pragma comment(lib, "Ws2_32.lib")
+
+#define OWM_HOST "api.openweathermap.org"
+#define OWM_PORT "443"
+#define CA_CERT_FILE "C:\\project\\wolfssl\\certs\\ca-cert.pem"
+
+static int tcp_connect(const char* host, const char* port)
+{
+    struct addrinfo hints;
+    struct addrinfo* result = NULL;
+    struct addrinfo* ptr = NULL;
+    int sockfd = -1;
+    int ret;
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
+
+    ret = getaddrinfo(host, port, &hints, &result);
+    if (ret != 0) {
+        printf("getaddrinfo failed: %d\n", ret);
+        return -1;
+    }
+
+    for (ptr = result; ptr != NULL; ptr = ptr->ai_next) {
+        sockfd = (int)socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
+        if (sockfd == -1) {
+            continue;
+        }
+
+        if (connect(sockfd, ptr->ai_addr, (int)ptr->ai_addrlen) == 0) {
+            break;
+        }
+
+        closesocket(sockfd);
+        sockfd = -1;
+    }
+
+    freeaddrinfo(result);
+    return sockfd;
+}
+
+int main(void)
+{
+    WSADATA wsaData;
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    int sockfd = -1;
+    int ret;
+    int err;
+
+    const char* request =
+        "GET /data/2.5/weather?lat=2.5148&lon=102.8158"
+        "&appid=de39ea676b5e2acb6c8d4bab078f07af"
+        "&units=metric HTTP/1.1\r\n"
+        "Host: " OWM_HOST "\r\n"
+        "User-Agent: wolfssl-openweather/1.0\r\n"
+        "Accept: application/json\r\n"
+        "Connection: close\r\n"
+        "\r\n";
+
+    ret = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    if (ret != 0) {
+        printf("WSAStartup failed: %d\n", ret);
+        return 1;
+    }
+
+    wolfSSL_Init();
+    
+
+    ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+    if (ctx == NULL) {
+        printf("wolfSSL_CTX_new failed\n");
+        goto cleanup;
+    }
+    wolfSSL_Debugging_ON();
+    if (wolfSSL_CTX_load_verify_locations(ctx, CA_CERT_FILE, NULL) != WOLFSSL_SUCCESS) {
+        printf("wolfSSL_CTX_load_verify_locations failed\n");
+        goto cleanup;
+    }
+
+    /* first smoke test only */
+    //wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+    wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
+
+    ssl = wolfSSL_new(ctx);
+    if (ssl == NULL) {
+        printf("wolfSSL_new failed\n");
+        goto cleanup;
+    }
+
+    sockfd = tcp_connect(OWM_HOST, OWM_PORT);
+    if (sockfd < 0) {
+        printf("tcp_connect failed\n");
+        goto cleanup;
+    }
+
+    if (wolfSSL_set_fd(ssl, sockfd) != WOLFSSL_SUCCESS) {
+        printf("wolfSSL_set_fd failed\n");
+        goto cleanup;
+    }
+
+    if (wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME,
+        OWM_HOST, (word16)strlen(OWM_HOST)) != WOLFSSL_SUCCESS) {
+        printf("wolfSSL_UseSNI failed\n");
+        goto cleanup;
+    }
+
+    ret = wolfSSL_connect(ssl);
+    if (ret != WOLFSSL_SUCCESS) {
+        err = wolfSSL_get_error(ssl, ret);
+        printf("wolfSSL_connect failed, err=%d\n", err);
+        goto cleanup;
+    }
+
+    printf("TLS connected to %s:%s\n", OWM_HOST, OWM_PORT);
+    printf("Negotiated TLS version: %s\n", wolfSSL_get_version(ssl));
+    printf("Cipher: %s\n", wolfSSL_CIPHER_get_name(wolfSSL_get_current_cipher(ssl)));
+
+    ret = wolfSSL_write(ssl, request, (int)strlen(request));
+    if (ret <= 0) {
+        err = wolfSSL_get_error(ssl, ret);
+        printf("wolfSSL_write failed, err=%d\n", err);
+        goto cleanup;
+    }
+
+    printf("=== HTTP RESPONSE BEGIN ===\n");
+
+    for (;;) {
+        char buf[2048];
+
+        ret = wolfSSL_read(ssl, buf, sizeof(buf) - 1);
+        if (ret > 0) {
+            buf[ret] = '\0';
+            printf("%s", buf);
+        }
+        else {
+            err = wolfSSL_get_error(ssl, ret);
+
+            if (err == WOLFSSL_ERROR_WANT_READ ||
+                err == WOLFSSL_ERROR_WANT_WRITE) {
+                continue;
+            }
+            break;
+        }
+    }
+
+    printf("\n=== HTTP RESPONSE END ===\n");
+
+cleanup:
+    if (ssl != NULL) {
+        wolfSSL_shutdown(ssl);
+        wolfSSL_free(ssl);
+    }
+
+    if (sockfd >= 0) {
+        closesocket(sockfd);
+    }
+
+    if (ctx != NULL) {
+        wolfSSL_CTX_free(ctx);
+    }
+
+    wolfSSL_Cleanup();
+    WSACleanup();
+
+    return 0;
+}
