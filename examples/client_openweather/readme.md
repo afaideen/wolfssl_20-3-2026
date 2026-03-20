@@ -208,6 +208,52 @@ Fix:
 * Use correct self-signed USERTrust + AAA
 
 ---
+Good catch — that detail matters for reproducibility 👍
+
+Here’s the **corrected section** you should update in your README:
+
+---
+
+### 🔧 Build (Visual Studio)
+
+1. Open project in:
+
+   ```
+   Visual Studio 2026
+   ```
+
+2. Select configuration:
+
+   ```
+   Debug | x64
+   ```
+
+3. Build:
+
+   ```
+   Ctrl + Shift + B
+   ```
+
+4. Output executable:
+
+   ```
+   .\Debug\x64\client_openweather.exe
+   ```
+
+---
+
+### 💡 Optional (Recommended addition under Overview)
+
+Update your environment section to:
+
+```
+Tested environment:
+- Windows 11
+- Visual Studio 2026
+- wolfSSL (static build)
+```
+
+---
 
 ## 🧩 Embedded Notes (PIC32MZ)
 
