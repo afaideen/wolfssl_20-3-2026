@@ -16,7 +16,8 @@
 
 #define OWM_HOST "api.openweathermap.org"
 #define OWM_PORT "443"
-#define CA_CERT_FILE "C:\\project\\wolfssl\\certs\\ca-cert.pem"
+//#define CA_CERT_FILE "C:\\project\\wolfssl_20-3-2026\\certs\\ca-cert.pem"
+#define CA_CERT_FILE "C:\\project\\wolfssl_20-3-2026\\certs\\openweather_root\\openweather_chain.pem"
 
 static int tcp_connect(const char* host, const char* port)
 {
@@ -89,8 +90,12 @@ int main(void)
         goto cleanup;
     }
     wolfSSL_Debugging_ON();
-    if (wolfSSL_CTX_load_verify_locations(ctx, CA_CERT_FILE, NULL) != WOLFSSL_SUCCESS) {
-        printf("wolfSSL_CTX_load_verify_locations failed\n");
+    //if (wolfSSL_CTX_load_verify_locations(ctx, CA_CERT_FILE, NULL) != WOLFSSL_SUCCESS) {
+    //    printf("wolfSSL_CTX_load_verify_locations failed\n");
+    //    goto cleanup;
+    //}
+    if (wolfSSL_CTX_load_system_CA_certs(ctx) != WOLFSSL_SUCCESS) {
+        printf("wolfSSL_CTX_load_system_CA_certs failed\n");
         goto cleanup;
     }
 

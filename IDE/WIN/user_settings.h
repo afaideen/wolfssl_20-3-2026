@@ -17,6 +17,7 @@
 #define WOLFSSL_SEND_HRR_COOKIE
 #define WOLFSSL_DTLS_CID
 #define HAVE_SNI
+#define WOLFSSL_SYS_CA_CERTS
 
 /* Configurations */
 #if defined(HAVE_FIPS)
