@@ -273,13 +273,19 @@ int main(void)
     //     printf("load root CA bundle failed\n");
     //     goto cleanup;
     // }
+    // if (wolfSSL_CTX_load_verify_locations(ctx,
+    // "C:\\project\\wolfssl_20-3-2026\\certs\\openweather_root\\root_bundle.pem",
+    // 0) != WOLFSSL_SUCCESS) {
+    //     printf("load root bundle file failed\n");
+    //     goto cleanup;
+    // }
+    // or use relative path
     if (wolfSSL_CTX_load_verify_locations(ctx,
-    "C:\\project\\wolfssl_20-3-2026\\certs\\openweather_root\\root_bundle.pem",
+    "certs/openweather_root/root_bundle.pem",
     0) != WOLFSSL_SUCCESS) {
         printf("load root bundle file failed\n");
         goto cleanup;
     }
-
 
     /* first smoke test only */
     //wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
