@@ -3208,16 +3208,29 @@ if(WOLFSSL_INSTALL)
     )
 endif()
 
+
+# === client_openweather (auto source discovery) ===
+file(GLOB CLIENT_OPENWEATHER_SOURCES CONFIGURE_DEPENDS
+        "examples/client_openweather/*.c"
+)
+
+file(GLOB CLIENT_OPENWEATHER_HEADERS CONFIGURE_DEPENDS
+        "examples/client_openweather/*.h"
+)
+
+message(STATUS "CLIENT_OPENWEATHER_SOURCES=${CLIENT_OPENWEATHER_SOURCES}")
+
 add_executable(client_openweather
-        examples/client_openweather/client_openweather.c
+        ${CLIENT_OPENWEATHER_SOURCES}
+        ${CLIENT_OPENWEATHER_HEADERS}
 )
 
 target_include_directories(client_openweather PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-
 target_link_libraries(client_openweather PRIVATE
         wolfssl
         ws2_32
 )
+
