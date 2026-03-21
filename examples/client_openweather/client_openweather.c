@@ -4,9 +4,9 @@
 // #include "cert_ref.h"
 // C:\project\wolfssl_20-3-2026\examples\client_openweather\client_openweather.c
 /* Put wolfSSL headers before Windows socket headers */
-#ifndef WOLFSSL_USER_SETTINGS
-#include <wolfssl/options.h>
-#endif
+// #ifndef WOLFSSL_USER_SETTINGS
+// #include <wolfssl/options.h>
+// #endif
 #include <wolfssl/ssl.h>
 
 #define WIN32_LEAN_AND_MEAN
