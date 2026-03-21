@@ -169,7 +169,7 @@ int main(void)
 
     char request[512];
 
-    snprintf(request, sizeof(request),
+    int req_len  = snprintf(request, sizeof(request),
         "GET /data/2.5/weather?lat=2.5148&lon=102.8158"
         "&appid=%s"
         "&units=metric HTTP/1.1\r\n"
@@ -180,6 +180,10 @@ int main(void)
         "\r\n",
         api_key
     );
+    if (req_len < 0 || req_len >= (int)sizeof(request)) {
+        printf("Error: request buffer too small\n");
+        return -1;
+    }
 
     ret = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (ret != 0) {
