@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "cert_ref.h"
+// #include "cert_ref.h"
 // C:\project\wolfssl_20-3-2026\examples\client_openweather\client_openweather.c
 /* Put wolfSSL headers before Windows socket headers */
 #ifndef WOLFSSL_USER_SETTINGS
@@ -13,12 +13,11 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
-#pragma comment(lib, "Ws2_32.lib")
 
 #define OWM_HOST "api.openweathermap.org"
 #define OWM_PORT "443"
 
-
+extern const char* root_ca_bundle_pem;
 
 static int tcp_connect(const char* host, const char* port)
 {
@@ -84,16 +83,6 @@ int main(void)
     int ret;
     int err;
 
-    // const char* request =
-    //     "GET /data/2.5/weather?lat=2.5148&lon=102.8158"
-    //     "&appid=de39ea676b5e2acb6c8d4bab078f07af"
-    //     "&units=metric HTTP/1.1\r\n"
-    //     "Host: " OWM_HOST "\r\n"
-    //     "User-Agent: wolfssl-openweather/1.0\r\n"
-    //     "Accept: application/json\r\n"
-    //     "Connection: close\r\n"
-    //     "\r\n";
-
     const char* api_key = getenv("OWM_API_KEY");
 
     if (api_key == NULL) {
@@ -146,12 +135,7 @@ int main(void)
         printf("load root CA bundle failed\n");
         goto cleanup;
     }
-    // if (wolfSSL_CTX_load_verify_locations(ctx,
-    // "C:\\project\\wolfssl_20-3-2026\\certs\\openweather_root\\root_bundle.pem",
-    // 0) != WOLFSSL_SUCCESS) {
-    //     printf("load root bundle file failed\n");
-    //     goto cleanup;
-    // }
+
     // or use relative path
     // if (wolfSSL_CTX_load_verify_locations(ctx,
     // "certs/openweather_root/root_bundle.pem",
@@ -161,8 +145,6 @@ int main(void)
     // }
 
     /* first smoke test only */
-    //wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
-    //wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
     wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, verify_cb);
 
     ssl = wolfSSL_new(ctx);
