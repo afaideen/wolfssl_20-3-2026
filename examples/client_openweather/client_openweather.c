@@ -264,33 +264,19 @@ int main(void)
 
     printf("DUAL-ROOT BUFFER TEST\n");
     printf("Using USERTrust + AAA root trust anchors\n");
- 
-    //if (wolfSSL_CTX_load_system_CA_certs(ctx) != WOLFSSL_SUCCESS) {
-    //    printf("wolfSSL_CTX_load_system_CA_certs failed\n");
-    //    goto cleanup;
-    //}
-  
-    // if (wolfSSL_CTX_load_verify_buffer(ctx,
-    //     (const unsigned char*)usertrust_root_ca_pem,
-    //     (long)strlen(usertrust_root_ca_pem),
-    //     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
-    //
-    //     printf("load USERTrust self-signed root failed\n");
-    //     goto cleanup;
-    // }
-    // if (wolfSSL_CTX_load_verify_buffer(ctx,
-    //     (const unsigned char*)aaa_root_ca_pem,
-    //     (long)strlen(aaa_root_ca_pem),
-    //     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
-    //     printf("load AAA root failed\n");
-    //     goto cleanup;
-    // }
 
-    if (wolfSSL_CTX_load_verify_buffer(ctx,
-    (const unsigned char*)root_ca_bundle_pem,
-    (long)strlen(root_ca_bundle_pem),
-    WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
-        printf("load root CA bundle failed\n");
+
+    // if (wolfSSL_CTX_load_verify_buffer(ctx,
+    // (const unsigned char*)root_ca_bundle_pem,
+    // (long)strlen(root_ca_bundle_pem),
+    // WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+    //     printf("load root CA bundle failed\n");
+    //     goto cleanup;
+    // }
+    if (wolfSSL_CTX_load_verify_locations(ctx,
+    "C:\\project\\wolfssl_20-3-2026\\certs\\openweather_root\\root_bundle.pem",
+    0) != WOLFSSL_SUCCESS) {
+        printf("load root bundle file failed\n");
         goto cleanup;
     }
 
