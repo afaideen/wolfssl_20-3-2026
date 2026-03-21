@@ -2699,8 +2699,9 @@ else()
     message(STATUS "WOLFSSL_INCLUDE_DIRS = ${WOLFSSL_INCLUDE_DIRS}")
 endif()
 
+
 target_include_directories(wolfssl
-    PUBLIC
+        PUBLIC
         $<INSTALL_INTERFACE:include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
@@ -3206,3 +3207,17 @@ if(WOLFSSL_INSTALL)
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/wolfssl
     )
 endif()
+
+add_executable(client_openweather
+        examples/client_openweather/client_openweather.c
+)
+
+target_include_directories(client_openweather PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+
+target_link_libraries(client_openweather PRIVATE
+        wolfssl
+        ws2_32
+)
