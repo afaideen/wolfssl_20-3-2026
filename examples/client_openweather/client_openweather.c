@@ -150,15 +150,36 @@ int main(void)
     int ret;
     int err;
 
-    const char* request =
+    // const char* request =
+    //     "GET /data/2.5/weather?lat=2.5148&lon=102.8158"
+    //     "&appid=de39ea676b5e2acb6c8d4bab078f07af"
+    //     "&units=metric HTTP/1.1\r\n"
+    //     "Host: " OWM_HOST "\r\n"
+    //     "User-Agent: wolfssl-openweather/1.0\r\n"
+    //     "Accept: application/json\r\n"
+    //     "Connection: close\r\n"
+    //     "\r\n";
+
+    const char* api_key = getenv("OWM_API_KEY");
+
+    if (api_key == NULL) {
+        printf("Error: OWM_API_KEY not set\n");
+        return -1;
+    }
+
+    char request[512];
+
+    snprintf(request, sizeof(request),
         "GET /data/2.5/weather?lat=2.5148&lon=102.8158"
-        "&appid=de39ea676b5e2acb6c8d4bab078f07af"
+        "&appid=%s"
         "&units=metric HTTP/1.1\r\n"
         "Host: " OWM_HOST "\r\n"
         "User-Agent: wolfssl-openweather/1.0\r\n"
         "Accept: application/json\r\n"
         "Connection: close\r\n"
-        "\r\n";
+        "\r\n",
+        api_key
+    );
 
     ret = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (ret != 0) {
