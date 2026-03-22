@@ -5,6 +5,14 @@
 /* Force wolfSSL to use local user_settings.h only */
 #define WOLFSSL_NO_OPTIONS_H
 #define WOLFSSL_USER_SETTINGS
+// #define OPENWEATHERMAP
+#define WEATHERAPI
+
+#if defined(OPENWEATHERMAP) && defined(WEATHERAPI)
+#error "Enable only one provider"
+#elif !defined(OPENWEATHERMAP) && !defined(WEATHERAPI)
+#error "Enable one provider"
+#endif
 
 /* Put wolfSSL headers before Windows socket headers */
 #include <wolfssl/options.h>
@@ -14,10 +22,18 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
-#define OWM_HOST "api.openweathermap.org"
-// #define OWM_HOST "api.weatherapi.com"
+#if defined(OPENWEATHERMAP)
+#define API_NAME        "OpenWeatherMap"
+#define API_HOST        "api.openweathermap.org"
+#define API_PORT        "443"
+#define API_ENV_KEY     "OPENWEATHERMAP_KEY"
+#elif defined(WEATHERAPI)
+#define API_NAME        "WeatherAPI"
+#define API_HOST        "api.weatherapi.com"
+#define API_PORT        "443"
+#define API_ENV_KEY     "WEATHERAPI_KEY"
+#endif
 
-#define OWM_PORT "443"
 
 extern const char* root_ca_bundle_pem;
 
@@ -125,36 +141,41 @@ int main(void)
     int ret;
     int err;
 
-    const char* api_key = getenv("OWM_API_KEY");
-    // const char* api_key = getenv("OWM_API_KEY2");
-
-    if (api_key == NULL) {
-        printf("Error: OWM_API_KEY2 not set\n");
-        return -1;
-    }
+    const char* api_key;
 
     char request[512];
+    int req_len;
+    api_key = getenv(API_ENV_KEY);
+    if (api_key == NULL) {
+        printf("Error: %s not set\n",API_ENV_KEY);
+        return -1;
+    }
+#if defined(OPENWEATHERMAP)
 
-    int req_len = snprintf(request, sizeof(request),
+    req_len = snprintf(request, sizeof(request),
         "GET /data/2.5/weather?lat=2.5148&lon=102.8158"
         "&appid=%s"
         "&units=metric HTTP/1.1\r\n"
-        "Host: " OWM_HOST "\r\n"
+        "Host: " API_HOST "\r\n"
         "User-Agent: wolfssl-openweather/1.0\r\n"
         "Accept: application/json\r\n"
         "Connection: close\r\n"
         "\r\n",
         api_key
     );
-    // int req_len = snprintf(request, sizeof(request),
-    //     "GET /v1/current.json?key=%s&q=segamat&aqi=no HTTP/1.1\r\n"
-    //     "Host: " OWM_HOST "\r\n"
-    //     "User-Agent: wolfssl-weatherapi/1.0\r\n"
-    //     "Accept: application/json\r\n"
-    //     "Connection: close\r\n"
-    //     "\r\n",
-    //     api_key
-    // );
+#elif defined(WEATHERAPI)
+
+     req_len = snprintf(request, sizeof(request),
+        "GET /v1/current.json?key=%s&q=segamat&aqi=no HTTP/1.1\r\n"
+        "Host: " API_HOST "\r\n"
+        "User-Agent: wolfssl-weatherapi/1.0\r\n"
+        "Accept: application/json\r\n"
+        "Connection: close\r\n"
+        "\r\n",
+        api_key
+    );
+#endif
+
     if (req_len < 0 || req_len >= (int)sizeof(request)) {
         printf("Error: request buffer too small\n");
         return -1;
@@ -180,14 +201,8 @@ int main(void)
     printf("DUAL-ROOT CA BUNDLE TEST\n");
     printf("Using USERTrust + AAA root trust anchors\n");
 
-    // if (wolfSSL_CTX_load_verify_buffer(ctx,
-    //     (const unsigned char*)root_ca_bundle_pem,
-    //     (long)strlen(root_ca_bundle_pem),
-    //     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
-    //     printf("load root CA bundle failed\n");
-    //     goto cleanup;
-    // }
 
+#if defined(OPENWEATHERMAP)
     const char* usertrust =
     "C:\\project\\wolfssl_20-3-2026\\certs\\openweather_root\\openweather_usertrust__root.crt";
 
@@ -205,12 +220,22 @@ int main(void)
         printf("Failed to load CA bundle\n");
         goto cleanup;
     }
-    // if (wolfSSL_CTX_load_verify_locations(ctx,
-    // "C:\\project\\wolfssl_20-3-2026\\certs\\openweather_root\\ISRG_Root_X1.pem",
-    // 0) != WOLFSSL_SUCCESS) {
-    //     printf("load root CA file failed\n");
+    // if (wolfSSL_CTX_load_verify_buffer(ctx,
+    //     (const unsigned char*)root_ca_bundle_pem,
+    //     (long)strlen(root_ca_bundle_pem),
+    //     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+    //     printf("load root CA bundle failed\n");
     //     goto cleanup;
     // }
+#elif defined(WEATHERAPI)
+    if (wolfSSL_CTX_load_verify_locations(ctx,
+    "C:\\project\\wolfssl_20-3-2026\\certs\\openweather_root\\ISRG_Root_X1.pem",
+    0) != WOLFSSL_SUCCESS) {
+        printf("load root CA file failed\n");
+        goto cleanup;
+    }
+#endif
+
 
     wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, verify_cb);
 
@@ -220,7 +245,7 @@ int main(void)
         goto cleanup;
     }
 
-    sockfd = tcp_connect(OWM_HOST, OWM_PORT);
+    sockfd = tcp_connect(API_HOST, API_PORT);
     if (sockfd < 0) {
         printf("tcp_connect failed\n");
         goto cleanup;
@@ -232,7 +257,7 @@ int main(void)
     }
 
     if (wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME,
-        OWM_HOST, (word16)strlen(OWM_HOST)) != WOLFSSL_SUCCESS) {
+        API_HOST, (word16)strlen(API_HOST)) != WOLFSSL_SUCCESS) {
         printf("wolfSSL_UseSNI failed\n");
         goto cleanup;
     }
@@ -249,7 +274,7 @@ int main(void)
         goto cleanup;
     }
 
-    printf("TLS connected to %s:%s\n", OWM_HOST, OWM_PORT);
+    printf("TLS connected to %s:%s\n", API_HOST, API_PORT);
     printf("Negotiated TLS version: %s\n", wolfSSL_get_version(ssl));
     printf("Cipher: %s\n",
         wolfSSL_CIPHER_get_name(wolfSSL_get_current_cipher(ssl)));
