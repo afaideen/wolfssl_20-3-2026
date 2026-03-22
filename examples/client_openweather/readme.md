@@ -7,15 +7,59 @@ This project demonstrates a TLS client using **wolfSSL** to securely connect to:
 ```
 https://api.openweathermap.org
 ```
-
+``
 ### Key Features
 
 * Embedded-style TLS (no OS trust store)
 * In-memory CA certificates (PEM buffers)
 * Full certificate chain verification
-* TLS 1.3 handshake
+* TLS 1.2 (minimal configuration)
+* Restricted cipher: ECDHE-RSA-AES128-GCM-SHA256
+* Deterministic TLS configuration via user_settings.h
 * HTTP GET + JSON response
 
+---
+
+## ⚙️ TLS Optimization (Minimal Footprint)
+
+This project has been optimized to use the **minimum required TLS feature set** based on real handshake analysis.
+
+### Final TLS Profile
+
+TLS Version: TLS 1.2
+Cipher: ECDHE-RSA-AES128-GCM-SHA256
+Key Exchange: ECDHE (ECC)
+Certificate: RSA (2048-bit)
+Hash: SHA-256
+
+
+### Key Decisions
+
+* ❌ Removed TLS 1.3 (not required)
+* ❌ Removed ALPN, OCSP, DTLS
+* ❌ Removed legacy algorithms (RC4, DES3, DSA, MD4)
+* ❌ Removed OpenSSL compatibility layer
+* ❌ Removed system CA dependency
+
+* ✔ Kept only:
+    - RSA (for certificate chain)
+    - ECC (for ECDHE)
+    - AES-GCM
+    - SHA-256
+
+### Cipher Restriction
+
+The client explicitly restricts the cipher:
+
+```c
+wolfSSL_set_cipher_list(ssl, "ECDHE-RSA-AES128-GCM-SHA256");
+```
+This ensures:
+
+* predictable TLS behavior
+* reduced attack surface
+* smaller code footprint
+* 
 ---
 
 ## 🧠 Certificate Strategy (CRITICAL)
@@ -338,7 +382,7 @@ Here’s a clean, structured summary of what you accomplished today 👇
    * `api.openweathermap.org:443`
 * Verified:
 
-   * TLS 1.3 handshake
+   * TLS 1.2 handshake
    * Cipher: `TLS_AES_256_GCM_SHA384`
    * HTTP 200 response ✅
 
