@@ -147,11 +147,11 @@ int main(void)
         goto cleanup;
     }
 
-    if (wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME,
-        OWM_HOST, (word16)strlen(OWM_HOST)) != WOLFSSL_SUCCESS) {
-        printf("wolfSSL_UseSNI failed\n");
-        goto cleanup;
-    }
+    // if (wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME,
+    //     OWM_HOST, (word16)strlen(OWM_HOST)) != WOLFSSL_SUCCESS) {
+    //     printf("wolfSSL_UseSNI failed\n");
+    //     goto cleanup;
+    // }
 
     if (wolfSSL_set_cipher_list(ssl, "ECDHE-RSA-AES128-GCM-SHA256") != WOLFSSL_SUCCESS) {
         printf("wolfSSL_set_cipher_list failed\n");

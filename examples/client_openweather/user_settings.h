@@ -22,7 +22,7 @@
 /* ---- Core requirements ---- */
 #define HAVE_ECC
 #define HAVE_AESGCM
-#define HAVE_SNI
+// #define HAVE_SNI
 
 /* RSA is required for the server cert chain */
 #define WC_RSA_PSS
@@ -35,6 +35,7 @@
 #define NO_MD4
 #define NO_DES3
 #define NO_OLD_TLS
+
 
 /* ---- Trim optional features not needed for this app ---- */
 #define NO_MD5
