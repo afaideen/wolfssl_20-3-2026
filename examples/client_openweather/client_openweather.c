@@ -15,9 +15,59 @@
 #include <ws2tcpip.h>
 
 #define OWM_HOST "api.openweathermap.org"
+// #define OWM_HOST "api.weatherapi.com"
+
 #define OWM_PORT "443"
 
 extern const char* root_ca_bundle_pem;
+
+static int append_file(FILE* out, const char* in_path)
+{
+    FILE* in = fopen(in_path, "rb");
+    if (!in) {
+        printf("Failed to open input: %s\n", in_path);
+        return -1;
+    }
+
+    char buf[4096];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), in)) > 0) {
+        if (fwrite(buf, 1, n, out) != n) {
+            fclose(in);
+            printf("Failed to write bundle\n");
+            return -1;
+        }
+    }
+
+    /* add newline separator just in case */
+    fputc('\n', out);
+    fclose(in);
+    return 0;
+}
+
+static int build_ca_bundle(const char* out_path,
+                           const char* cert1,
+                           const char* cert2)
+{
+    FILE* out = fopen(out_path, "wb");
+    if (!out) {
+        printf("Failed to create bundle: %s\n", out_path);
+        return -1;
+    }
+
+    if (append_file(out, cert1) != 0) {
+        fclose(out);
+        return -1;
+    }
+
+    if (append_file(out, cert2) != 0) {
+        fclose(out);
+        return -1;
+    }
+
+    fclose(out);
+    return 0;
+}
 
 static int tcp_connect(const char* host, const char* port)
 {
@@ -76,9 +126,10 @@ int main(void)
     int err;
 
     const char* api_key = getenv("OWM_API_KEY");
+    // const char* api_key = getenv("OWM_API_KEY2");
 
     if (api_key == NULL) {
-        printf("Error: OWM_API_KEY not set\n");
+        printf("Error: OWM_API_KEY2 not set\n");
         return -1;
     }
 
@@ -95,6 +146,15 @@ int main(void)
         "\r\n",
         api_key
     );
+    // int req_len = snprintf(request, sizeof(request),
+    //     "GET /v1/current.json?key=%s&q=segamat&aqi=no HTTP/1.1\r\n"
+    //     "Host: " OWM_HOST "\r\n"
+    //     "User-Agent: wolfssl-weatherapi/1.0\r\n"
+    //     "Accept: application/json\r\n"
+    //     "Connection: close\r\n"
+    //     "\r\n",
+    //     api_key
+    // );
     if (req_len < 0 || req_len >= (int)sizeof(request)) {
         printf("Error: request buffer too small\n");
         return -1;
@@ -117,16 +177,40 @@ int main(void)
 
     wolfSSL_Debugging_ON();
 
-    printf("DUAL-ROOT BUFFER TEST\n");
+    printf("DUAL-ROOT CA BUNDLE TEST\n");
     printf("Using USERTrust + AAA root trust anchors\n");
 
-    if (wolfSSL_CTX_load_verify_buffer(ctx,
-        (const unsigned char*)root_ca_bundle_pem,
-        (long)strlen(root_ca_bundle_pem),
-        WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
-        printf("load root CA bundle failed\n");
+    // if (wolfSSL_CTX_load_verify_buffer(ctx,
+    //     (const unsigned char*)root_ca_bundle_pem,
+    //     (long)strlen(root_ca_bundle_pem),
+    //     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+    //     printf("load root CA bundle failed\n");
+    //     goto cleanup;
+    // }
+
+    const char* usertrust =
+    "C:\\project\\wolfssl_20-3-2026\\certs\\openweather_root\\openweather_usertrust__root.crt";
+
+    const char* aaa =
+        "C:\\project\\wolfssl_20-3-2026\\certs\\openweather_root\\aaa_root_cert.cer";
+
+    const char* bundle =
+        "C:\\project\\wolfssl_20-3-2026\\certs\\openweather_root\\openweather_ca_bundle.pem";
+
+    if (build_ca_bundle(bundle, usertrust, aaa) != 0) {
+        printf("Failed to build CA bundle\n");
         goto cleanup;
     }
+    if (wolfSSL_CTX_load_verify_locations(ctx, bundle, 0) != WOLFSSL_SUCCESS) {
+        printf("Failed to load CA bundle\n");
+        goto cleanup;
+    }
+    // if (wolfSSL_CTX_load_verify_locations(ctx,
+    // "C:\\project\\wolfssl_20-3-2026\\certs\\openweather_root\\ISRG_Root_X1.pem",
+    // 0) != WOLFSSL_SUCCESS) {
+    //     printf("load root CA file failed\n");
+    //     goto cleanup;
+    // }
 
     wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, verify_cb);
 
@@ -147,11 +231,11 @@ int main(void)
         goto cleanup;
     }
 
-    // if (wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME,
-    //     OWM_HOST, (word16)strlen(OWM_HOST)) != WOLFSSL_SUCCESS) {
-    //     printf("wolfSSL_UseSNI failed\n");
-    //     goto cleanup;
-    // }
+    if (wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME,
+        OWM_HOST, (word16)strlen(OWM_HOST)) != WOLFSSL_SUCCESS) {
+        printf("wolfSSL_UseSNI failed\n");
+        goto cleanup;
+    }
 
     if (wolfSSL_set_cipher_list(ssl, "ECDHE-RSA-AES128-GCM-SHA256") != WOLFSSL_SUCCESS) {
         printf("wolfSSL_set_cipher_list failed\n");
