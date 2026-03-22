@@ -3225,9 +3225,9 @@ add_executable(client_openweather
         ${CLIENT_OPENWEATHER_HEADERS}
 )
 
-target_compile_definitions(client_openweather PRIVATE
-        WOLFSSL_USER_SETTINGS
-)
+#target_compile_definitions(client_openweather PRIVATE
+#        WOLFSSL_USER_SETTINGS
+#)
 
 target_include_directories(client_openweather PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}

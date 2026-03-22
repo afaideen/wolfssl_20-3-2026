@@ -1,18 +1,18 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-// #include "cert_ref.h"
-// C:\project\wolfssl_20-3-2026\examples\client_openweather\client_openweather.c
+
+/* Force wolfSSL to use local user_settings.h only */
+#define WOLFSSL_NO_OPTIONS_H
+#define WOLFSSL_USER_SETTINGS
+
 /* Put wolfSSL headers before Windows socket headers */
-// #ifndef WOLFSSL_USER_SETTINGS
-// #include <wolfssl/options.h>
-// #endif
+#include <wolfssl/options.h>
 #include <wolfssl/ssl.h>
 
 #define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
 #include <ws2tcpip.h>
-
 
 #define OWM_HOST "api.openweathermap.org"
 #define OWM_PORT "443"
@@ -55,21 +55,13 @@ static int tcp_connect(const char* host, const char* port)
     freeaddrinfo(result);
     return sockfd;
 }
+
 static int verify_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
 {
     int err = store->error;
     int depth = store->error_depth;
 
     printf("verify_cb: preverify=%d err=%d depth=%d\n", preverify, err, depth);
-
-    if (store->current_cert) {
-        char subject[256];
-        subject[0] = '\0';
-        wolfSSL_X509_NAME_oneline(
-            wolfSSL_X509_get_subject_name(store->current_cert),
-            subject, sizeof(subject));
-        printf("verify_cb subject: %s\n", subject);
-    }
 
     return preverify;
 }
@@ -92,7 +84,7 @@ int main(void)
 
     char request[512];
 
-    int req_len  = snprintf(request, sizeof(request),
+    int req_len = snprintf(request, sizeof(request),
         "GET /data/2.5/weather?lat=2.5148&lon=102.8158"
         "&appid=%s"
         "&units=metric HTTP/1.1\r\n"
@@ -115,36 +107,27 @@ int main(void)
     }
 
     wolfSSL_Init();
-    
 
-    ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+    /* TLS 1.2 only: matches your trimmed user_settings.h direction */
+    ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
     if (ctx == NULL) {
         printf("wolfSSL_CTX_new failed\n");
         goto cleanup;
     }
+
     wolfSSL_Debugging_ON();
 
     printf("DUAL-ROOT BUFFER TEST\n");
     printf("Using USERTrust + AAA root trust anchors\n");
 
-
     if (wolfSSL_CTX_load_verify_buffer(ctx,
-    (const unsigned char*)root_ca_bundle_pem,
-    (long)strlen(root_ca_bundle_pem),
-    WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+        (const unsigned char*)root_ca_bundle_pem,
+        (long)strlen(root_ca_bundle_pem),
+        WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
         printf("load root CA bundle failed\n");
         goto cleanup;
     }
 
-    // or use relative path
-    // if (wolfSSL_CTX_load_verify_locations(ctx,
-    // "certs/openweather_root/root_bundle.pem",
-    // 0) != WOLFSSL_SUCCESS) {
-    //     printf("load root bundle file failed\n");
-    //     goto cleanup;
-    // }
-
-    /* first smoke test only */
     wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, verify_cb);
 
     ssl = wolfSSL_new(ctx);
@@ -170,18 +153,22 @@ int main(void)
         goto cleanup;
     }
 
+    if (wolfSSL_set_cipher_list(ssl, "ECDHE-RSA-AES128-GCM-SHA256") != WOLFSSL_SUCCESS) {
+        printf("wolfSSL_set_cipher_list failed\n");
+        goto cleanup;
+    }
 
     ret = wolfSSL_connect(ssl);
     if (ret != WOLFSSL_SUCCESS) {
         err = wolfSSL_get_error(ssl, ret);
-        //printf("wolfSSL_connect failed, err=%d\n", err);
         printf("wolfSSL_connect failed, ret=%d err=%d\n", ret, err);
         goto cleanup;
     }
 
     printf("TLS connected to %s:%s\n", OWM_HOST, OWM_PORT);
     printf("Negotiated TLS version: %s\n", wolfSSL_get_version(ssl));
-    printf("Cipher: %s\n", wolfSSL_CIPHER_get_name(wolfSSL_get_current_cipher(ssl)));
+    printf("Cipher: %s\n",
+        wolfSSL_CIPHER_get_name(wolfSSL_get_current_cipher(ssl)));
 
     ret = wolfSSL_write(ssl, request, (int)strlen(request));
     if (ret <= 0) {

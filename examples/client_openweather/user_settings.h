@@ -1,114 +1,63 @@
 #ifndef _WIN_USER_SETTINGS_H_
 #define _WIN_USER_SETTINGS_H_
-//#warning "USING LOCAL user_settings.h"
-/* Verify this is Windows */
+
 #ifndef _WIN32
-#error This user_settings.h header is only designed for Windows
+    #error This user_settings.h header is only designed for Windows
 #endif
 
+/* -------------------------------------------------------
+ * Minimal TLS 1.2 client config for api.openweathermap.org
+ *
+ * Target working path:
+ *   TLS 1.2
+ *   ECDHE-RSA-AES128-GCM-SHA256 preferred
+ *   RSA certificate verification
+ *   SNI
+ *   Manual CA loading from buffer
+ * ------------------------------------------------------- */
+
+/* Local / custom settings mode */
 #define USE_WOLFSSL_IO
+
+/* ---- Core requirements ---- */
+#define HAVE_ECC
 #define HAVE_AESGCM
-#define WOLFSSL_TLS13
-#define HAVE_HKDF
-#define HAVE_FFDHE_4096
-#define WC_RSA_PSS
-#define WOLFSSL_DTLS
-#define WOLFSSL_DTLS13
-#define WOLFSSL_SEND_HRR_COOKIE
-#define WOLFSSL_DTLS_CID
 #define HAVE_SNI
-#define WOLFSSL_SYS_CA_CERTS
 
-/* Configurations */
-#if defined(HAVE_FIPS)
-    /* FIPS */
-    #define OPENSSL_EXTRA
-    #define HAVE_THREAD_LS
-    #define WOLFSSL_KEY_GEN
-    #define HAVE_HASHDRBG
-    #define WOLFSSL_SHA384
-    #define WOLFSSL_SHA512
-    #define NO_PSK
-    #define NO_RC4
-    #define NO_DSA
-    #define NO_MD4
+/* RSA is required for the server cert chain */
+#define WC_RSA_PSS
+#define WC_RSA_BLINDING
 
-    #define GCM_NONCE_MID_SZ 12
-#else
-    /* Enables blinding mode, to prevent timing attacks */
-    #define WC_RSA_BLINDING
-    #define NO_MULTIBYTE_PRINT
+/* ---- Disable unused / legacy features ---- */
+#define NO_PSK
+#define NO_RC4
+#define NO_DSA
+#define NO_MD4
+#define NO_DES3
+#define NO_OLD_TLS
 
-    #define HAVE_CRL
-    #define HAVE_CRL_MONITOR
+/* ---- Trim optional features not needed for this app ---- */
+#define NO_MD5
+#define NO_SHA
+#define NO_SHA512
+#define NO_DH
 
-    #define HAVE_OCSP
-    #define HAVE_OCSP_RESPONDER
-    #define WOLFSSL_CERT_GEN
-    #define HAVE_CERTIFICATE_STATUS_REQUEST
+/* ---- TLS 1.3-related / extra features intentionally omitted ---- */
+/* no WOLFSSL_TLS13 */
+/* no HAVE_HKDF */
 
-    #if defined(WOLFSSL_LIB)
-        /* The lib */
-        #define OPENSSL_EXTRA
-        #define WOLFSSL_RIPEMD
-        #define NO_PSK
-        #define HAVE_EXTENDED_MASTER
-        #define WOLFSSL_SNIFFER
-        #define HAVE_SECURE_RENEGOTIATION
+/* ---- Compatibility extras intentionally omitted for smaller size ---- */
+/* no OPENSSL_EXTRA */
 
-        #define HAVE_AESGCM
-        #define WOLFSSL_AESGCM_STREAM
-        #define WOLFSSL_SHA384
-        #define WOLFSSL_SHA512
+/* ---- Not needed because CA is loaded from root_ca_bundle_pem in code ---- */
+/* no WOLFSSL_SYS_CA_CERTS */
 
-        #define HAVE_SUPPORTED_CURVES
-        #define HAVE_TLS_EXTENSIONS
-
-        #define HAVE_ECC
-        #define ECC_SHAMIR
-        #define ECC_TIMING_RESISTANT
-
-        #define WOLFSSL_SP_X86_64
-        #define SP_INT_BITS  4096
-
-        /* Optional Performance Speedups */
-        #if 0
-            /* AESNI on x64 */
-            #ifdef _WIN64
-                #define HAVE_INTEL_RDSEED
-                #define WOLFSSL_AESNI
-                #define HAVE_INTEL_AVX1
-                #if 0
-                    #define HAVE_INTEL_AVX2
-                #endif
-
-                #define USE_INTEL_CHACHA_SPEEDUP
-                #define USE_INTEL_POLY1305_SPEEDUP
-            #endif
-
-            /* Single Precision Support for RSA/DH 1024/2048/3072 and
-             * ECC P-256/P-384 */
-            #define WOLFSSL_SP
-            #define WOLFSSL_HAVE_SP_ECC
-            #define WOLFSSL_HAVE_SP_DH
-            #define WOLFSSL_HAVE_SP_RSA
-
-            #ifdef _WIN64
-                /* Old versions of MASM compiler do not recognize newer
-                 * instructions. */
-                #if 0
-                    #define NO_AVX2_SUPPORT
-                    #define NO_MOVBE_SUPPORT
-                #endif
-                #define WOLFSSL_SP_ASM
-                #define WOLFSSL_SP_X86_64_ASM
-            #endif
-        #endif
-    #else
-        /* The servers and clients */
-        #define OPENSSL_EXTRA
-        #define NO_PSK
-    #endif
-#endif /* HAVE_FIPS */
+/* ---- Not needed ---- */
+/* no DTLS */
+/* no ALPN */
+/* no OCSP */
+/* no CRL */
+/* no cert generation */
+/* no session ticket features explicitly enabled */
 
 #endif /* _WIN_USER_SETTINGS_H_ */
