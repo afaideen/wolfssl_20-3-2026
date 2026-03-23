@@ -5,15 +5,6 @@
 /* Force wolfSSL to use local user_settings.h only */
 #define WOLFSSL_NO_OPTIONS_H
 #define WOLFSSL_USER_SETTINGS
-// #define OPENWEATHERMAP
-#define WEATHERAPI
-
-#if defined(OPENWEATHERMAP) && defined(WEATHERAPI)
-#error "Enable only one provider"
-#elif !defined(OPENWEATHERMAP) && !defined(WEATHERAPI)
-#error "Enable one provider"
-#endif
-
 /* Put wolfSSL headers before Windows socket headers */
 #include <wolfssl/options.h>
 #include <wolfssl/ssl.h>
@@ -22,69 +13,113 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
-#if defined(OPENWEATHERMAP)
-#define API_NAME        "OpenWeatherMap"
-#define API_HOST        "api.openweathermap.org"
-#define API_PORT        "443"
-#define API_ENV_KEY     "OPENWEATHERMAP_KEY"
-#elif defined(WEATHERAPI)
-#define API_NAME        "WeatherAPI"
-#define API_HOST        "api.weatherapi.com"
-#define API_PORT        "443"
-#define API_ENV_KEY     "WEATHERAPI_KEY"
+/* ================= CONFIG ================= */
+
+// Select provider
+#define OPENWEATHERMAP
+// #define WEATHERAPI
+/* ========================================== */
+
+#if defined(OPENWEATHERMAP) && defined(WEATHERAPI)
+    #error "Enable only one provider"
+#elif !defined(OPENWEATHERMAP) && !defined(WEATHERAPI)
+    #error "Enable one provider"
 #endif
 
 
-extern const char* root_ca_bundle_pem;
 
-static int append_file(FILE* out, const char* in_path)
-{
-    FILE* in = fopen(in_path, "rb");
-    if (!in) {
-        printf("Failed to open input: %s\n", in_path);
-        return -1;
-    }
+#if defined(OPENWEATHERMAP)
+    #define API_NAME        "OpenWeatherMap"
+    #define API_HOST        "api.openweathermap.org"
+    #define API_PORT        "443"
+    #define API_ENV_KEY     "OPENWEATHERMAP_KEY"
 
-    char buf[4096];
-    size_t n;
-    while ((n = fread(buf, 1, sizeof(buf), in)) > 0) {
-        if (fwrite(buf, 1, n, out) != n) {
-            fclose(in);
-            printf("Failed to write bundle\n");
+    // Select ONE mode only
+    #define SINGLE_ROOT_FILE
+    // #define DUAL_ROOT_BUNDLE_FILE
+    // #define DUAL_ROOT_BUFFER
+
+    // #define CERT_DIR "C:/project/wolfssl_20-3-2026/examples/client_openweather/certs/openweathermap/"
+    #define CERT_DIR "examples/client_openweather/certs/openweathermap/"
+
+    /* Root files */
+    #if defined(DUAL_ROOT_BUFFER)
+        /* Bundle output (for file-based dual mode) */
+        #define BUNDLE_CA    CERT_DIR "bundle.pem"
+    #else
+        #define USERTRUST_CA CERT_DIR "usertrust.crt"
+        #define AAA_CA       CERT_DIR "aaa.cer"
+    #endif
+
+
+    /* Buffer (for embedded mode) */
+    extern const char* root_ca_bundle_pem;
+#elif defined(WEATHERAPI)
+    #define API_NAME        "WeatherAPI"
+    #define API_HOST        "api.weatherapi.com"
+    #define API_PORT        "443"
+    #define API_ENV_KEY     "WEATHERAPI_KEY"
+
+    #define CERT_DIR        "examples/client_openweather/certs/weatherapi/"
+    #define ISRG_Root_X1_CA              CERT_DIR "ISRG_Root_X1.pem"
+#endif
+
+
+
+#if defined(DUAL_ROOT_BUNDLE_FILE)
+    int append_file(const char* dst, const char* src)
+    {
+        FILE* fsrc = fopen(src, "rb");
+        if (!fsrc) {
+            printf("append_file: failed to open source: %s\n", src);
             return -1;
         }
+
+        FILE* fdst = fopen(dst, "ab");
+        if (!fdst) {
+            printf("append_file: failed to open destination: %s\n", dst);
+            fclose(fsrc);
+            return -1;
+        }
+
+        char buf[1024];
+        size_t n;
+        while ((n = fread(buf, 1, sizeof(buf), fsrc)) > 0) {
+            if (fwrite(buf, 1, n, fdst) != n) {
+                printf("append_file: write failed to destination: %s\n", dst);
+                fclose(fsrc);
+                fclose(fdst);
+                return -1;
+            }
+        }
+
+        fclose(fsrc);
+        fclose(fdst);
+        return 0;
     }
 
-    /* add newline separator just in case */
-    fputc('\n', out);
-    fclose(in);
-    return 0;
-}
+    int build_ca_bundle(const char* bundle, const char* ca1, const char* ca2)
+    {
+        printf("Building CA bundle: %s\n", bundle);
+        printf("  CA1: %s\n", ca1);
+        printf("  CA2: %s\n", ca2);
 
-static int build_ca_bundle(const char* out_path,
-                           const char* cert1,
-                           const char* cert2)
-{
-    FILE* out = fopen(out_path, "wb");
-    if (!out) {
-        printf("Failed to create bundle: %s\n", out_path);
-        return -1;
+        remove(bundle);
+
+        if (append_file(bundle, ca1) != 0) {
+            printf("Failed appending CA1\n");
+            return -1;
+        }
+
+        if (append_file(bundle, ca2) != 0) {
+            printf("Failed appending CA2\n");
+            return -1;
+        }
+
+        return 0;
     }
 
-    if (append_file(out, cert1) != 0) {
-        fclose(out);
-        return -1;
-    }
-
-    if (append_file(out, cert2) != 0) {
-        fclose(out);
-        return -1;
-    }
-
-    fclose(out);
-    return 0;
-}
-
+#endif
 static int tcp_connect(const char* host, const char* port)
 {
     struct addrinfo hints;
@@ -198,38 +233,52 @@ int main(void)
 
     wolfSSL_Debugging_ON();
 
-    printf("DUAL-ROOT CA BUNDLE TEST\n");
-    printf("Using USERTrust + AAA root trust anchors\n");
+
+
 
 
 #if defined(OPENWEATHERMAP)
-    const char* usertrust =
-    "C:\\project\\wolfssl_20-3-2026\\certs\\openweather_root\\openweather_usertrust__root.crt";
 
-    const char* aaa =
-        "C:\\project\\wolfssl_20-3-2026\\certs\\openweather_root\\aaa_root_cert.cer";
+    #if defined(SINGLE_ROOT_FILE)
+        printf("SINGLE-ROOT CA TEST\n");
+        printf("Using AAA root trust anchor\n");
 
-    const char* bundle =
-        "C:\\project\\wolfssl_20-3-2026\\certs\\openweather_root\\openweather_ca_bundle.pem";
+        // if (wolfSSL_CTX_load_verify_locations(ctx, USERTRUST_CA, 0) != WOLFSSL_SUCCESS) {
+        if (wolfSSL_CTX_load_verify_locations(ctx, AAA_CA, 0) != WOLFSSL_SUCCESS) {
+            printf("Failed to load CA bundle\n");
+            goto cleanup;
+        }
+    #elif defined(DUAL_ROOT_BUNDLE_FILE)
+        printf("DUAL-ROOT CA BUNDLE TEST\n");
+        printf("Using USERTrust + AAA root trust anchors\n");
 
-    if (build_ca_bundle(bundle, usertrust, aaa) != 0) {
-        printf("Failed to build CA bundle\n");
-        goto cleanup;
-    }
-    if (wolfSSL_CTX_load_verify_locations(ctx, bundle, 0) != WOLFSSL_SUCCESS) {
-        printf("Failed to load CA bundle\n");
-        goto cleanup;
-    }
-    // if (wolfSSL_CTX_load_verify_buffer(ctx,
-    //     (const unsigned char*)root_ca_bundle_pem,
-    //     (long)strlen(root_ca_bundle_pem),
-    //     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
-    //     printf("load root CA bundle failed\n");
-    //     goto cleanup;
-    // }
+        if (build_ca_bundle(BUNDLE_CA, USERTRUST_CA, AAA_CA) != 0) {
+            printf("Failed to build CA bundle\n");
+            goto cleanup;
+        }
+        if (wolfSSL_CTX_load_verify_locations(ctx, BUNDLE_CA, 0) != WOLFSSL_SUCCESS) {
+            printf("Failed to load CA bundle\n");
+            goto cleanup;
+        }
+    #elif defined(DUAL_ROOT_BUFFER)
+        printf("MODE: DUAL ROOT BUFFER\n");
+        printf("Using embedded CA bundle\n");
+
+        if (wolfSSL_CTX_load_verify_buffer(ctx,
+            (const unsigned char*)root_ca_bundle_pem,
+            (long)strlen(root_ca_bundle_pem),
+            WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+            printf("load root CA bundle failed\n");
+            goto cleanup;
+        }
+    #else
+        #error "No CA mode selected"
+
+    #endif
+
 #elif defined(WEATHERAPI)
     if (wolfSSL_CTX_load_verify_locations(ctx,
-    "C:\\project\\wolfssl_20-3-2026\\certs\\openweather_root\\ISRG_Root_X1.pem",
+    ISRG_Root_X1_CA,
     0) != WOLFSSL_SUCCESS) {
         printf("load root CA file failed\n");
         goto cleanup;
